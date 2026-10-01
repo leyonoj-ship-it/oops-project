@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=http://localhost:8080">
+    <title>SmartDine Platform</title>
+    <script>
+        // Redirect to local server if running, or directly to static page
+        if (window.location.protocol === 'file:') {
+            window.location.href = 'src/main/resources/static/index.html';
+        } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.location.href = 'http://localhost:8080';
+        }
+    </script>
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 50px;">
+    <h2>Redirecting to SmartDine...</h2>
+    <p>If you are not redirected automatically:</p>
+    <p><a href="http://localhost:8080" style="font-size: 18px; color: #ff6b35;">Open SmartDine Server (http://localhost:8080)</a></p>
+    <p><a href="src/main/resources/static/index.html" style="font-size: 14px; color: #64748b;">Or view static pages directly</a></p>
+</body>
+</html>
