@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="DEFAULT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartDine — Discover Hotels & Canteens Near You</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        .filter-tab {
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            border-radius: var(--radius-full);
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .filter-tab:hover, .filter-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+        .ambiance-banner {
+            background: var(--bg-card);
+            border: 1.5px solid var(--primary);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            margin: 24px 0;
+            box-shadow: var(--shadow-md);
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .ambiance-food-chip {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 6px 14px;
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .ambiance-food-chip:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.03);
+        }
+        #mapContainer {
+            height: 320px;
+            width: 100%;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="navbar">
+        <div class="container nav-wrapper">
+            <a href="customer.html" class="brand-logo">
+                <div class="brand-icon">🍽️</div>
+                <span>SmartDine</span>
+            </a>
+
+            <!-- Search Bar -->
+            <div class="nav-search">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="globalSearch" class="search-input" placeholder="Search for hotels, restaurants or canteens...">
+            </div>
+
+            <!-- Actions -->
+            <div class="nav-actions">
+                <!-- Dynamic Ambiance Selector -->
+                <div class="ambiance-pill-container" title="Select dining ambiance to transform theme & recommended dishes">
+                    <span style="font-size: 13px; margin-left: 6px;">✨</span>
+                    <select id="ambianceSelect" class="ambiance-select">
+                        <option value="DEFAULT">Default Theme (White &amp; Orange)</option>
+                        <option value="CANDLE_LIGHT">Candle Light Dinner (Deep Red)</option>
+                        <option value="ROMANTIC">Romantic Dining (Soft Rose)</option>
+                        <option value="FAMILY">Family Feast (Warm Amber)</option>
+                        <option value="FRIENDS">Friends Hangout (Electric Blue)</option>
+                        <option value="PREMIUM">Premium Luxury (Gold &amp; Black)</option>
+                        <option value="CASUAL">Casual Hangout (Clean Orange)</option>
+                        <option value="OUTDOOR">Outdoor Garden (Botanical Green)</option>
+                        <option value="BIRTHDAY">Birthday Celebration (Purple Glow)</option>
+                    </select>
+                </div>
+
+                <!-- FAST SERVE Express Button -->
+                <button class="btn btn-fast-serve btn-sm" onclick="customerApp.openFastServeModal()" title="Already seated? Enter table number to order immediately!">
+                    ⚡ Fast Serve (At Table)
+                </button>
+
+                <!-- Cart Button -->
+                <button class="btn btn-secondary btn-icon" onclick="customerApp.toggleCartDrawer(true)" style="position: relative;">
+                    🛒
+                    <span id="cartBadge" class="badge badge-clearance" style="position: absolute; top: -6px; right: -6px; display: none;">0</span>
+                </button>
+
+                <!-- User Dropdown & Logout -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);" id="userNameBadge">Aarav Sharma</div>
+                    <button class="btn btn-secondary btn-sm" onclick="auth.logout()" title="Logout">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container" style="padding-top: 24px; padding-bottom: 60px;">
+
+        <!-- Dynamic Ambiance Recommendation Banner -->
+        <div id="ambianceRecommendationBanner" class="ambiance-banner"></div>
+
+        <!-- Smart Food Clearance Alerts Section (Closing-time 50% deals) -->
+        <section id="clearanceSection" style="margin-bottom: 28px; display: none;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <h3 style="font-size: 18px; color: var(--danger); display: flex; align-items: center; gap: 6px;">
+                    <span>🔥</span> Closing-Time Smart Food Clearance Offers
+                </h3>
+                <span style="font-size: 12px; color: var(--text-secondary);">Limited remaining food at 50% discount</span>
+            </div>
+            <div id="clearanceList" class="grid grid-cols-2"></div>
+        </section>
+
+        <!-- Location Discovery & Interactive Map -->
+        <section style="margin-bottom: 28px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                <div>
+                    <h2 style="font-size: 22px;">Hotels &amp; Canteens Near You</h2>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        Interactive map discovery using approximate location • Calculates real-time distance
+                    </p>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="customerApp.loadNearbyEstablishments()">
+                    📍 Refresh My Location
+                </button>
+            </div>
+
+            <!-- Map View Container -->
+            <div id="mapContainer"></div>
+        </section>
+
+        <!-- Filter Tabs (All / Hotel / Canteen) -->
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+            <button class="filter-tab active" data-tab="ALL">All Places</button>
+            <button class="filter-tab" data-tab="HOTEL">🏨 Hotels &amp; Restaurants</button>
+            <button class="filter-tab" data-tab="CANTEEN">☕ Campus Canteens</button>
+        </div>
+
+        <!-- Establishments Cards Grid -->
+        <section id="establishmentsGrid" class="grid grid-cols-3"></section>
+
+        <!-- Past Orders & Live Trackers Section -->
+        <section style="margin-top: 48px;">
+            <h3 style="font-size: 18px; margin-bottom: 14px;">Your Active &amp; Recent Orders</h3>
+            <div id="ordersHistoryList"></div>
+        </section>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ESTABLISHMENT DETAILS & MENU MODAL         -->
+    <!-- ========================================== -->
+    <div id="establishmentModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <div style="position: relative; height: 220px;">
+                <img id="modalEstCover" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                <button class="modal-close" onclick="document.getElementById('establishmentModal').classList.remove('active')" 
+                        style="position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: white; width: 36px; height: 36px; border-radius: 50%;">
+                    ✕
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <div>
+                        <span id="modalEstType" class="badge">HOTEL</span>
+                        <h2 id="modalEstName" style="margin-top: 4px; font-size: 22px;">Establishment</h2>
+                        <div id="modalEstLocation" style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;"></div>
+                    </div>
+                    <div id="modalEstRating" style="font-size: 15px; font-weight: 700; color: #f59e0b;">★ 4.8</div>
+                </div>
+
+                <p id="modalEstDesc" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;"></p>
+                <div id="modalEstAmbiances" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px;"></div>
+
+                <!-- Menu Items List -->
+                <div id="modalMenuContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- FOOD CUSTOMIZATION MODAL                   -->
+    <!-- ========================================== -->
+    <div id="customizeModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3 style="font-size: 16px;">Customize Preparation</h3>
+                <button class="modal-close" onclick="document.getElementById('customizeModal').classList.remove('active')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                    <strong id="customFoodName" style="font-size: 16px;">Food Item</strong>
+                    <strong id="customFoodPrice" style="color: var(--primary); font-size: 16px;">₹0</strong>
+                </div>
+                <input type="hidden" id="customFoodId">
+
+                <div class="form-group">
+                    <label class="form-label">Cooking Preferences</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="custom-pref-checkbox" value="Less spicy"> Less spicy
+                        </label>
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="custom-pref-checkbox" value="Extra cheese"> Extra cheese (+₹30)
+                        </label>
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="custom-pref-checkbox" value="No onion & garlic"> No onion &amp; garlic
+                        </label>
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="custom-pref-checkbox" value="Less salt / oil"> Less salt / oil
+                        </label>
+                        <label style="font-size: 13px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" class="custom-pref-checkbox" value="Extra sauce/dip"> Extra sauce / dip
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Special Chef Note</label>
+                    <input type="text" id="customNoteInput" class="form-control" placeholder="e.g. Please pack cutlery">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" id="customFoodQty" class="form-control" value="1" min="1" max="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('customizeModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="customerApp.confirmAddToCart()">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- FAST SERVE MODAL (CRITICAL INNOVATION)     -->
+    <!-- ========================================== -->
+    <div id="fastServeModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <div>
+                    <span class="badge badge-fast-serve">⚡ Fast Serve Express</span>
+                    <h3 style="margin-top: 4px; font-size: 18px;">I am already at the table</h3>
+                </div>
+                <button class="modal-close" onclick="document.getElementById('fastServeModal').classList.remove('active')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                    Skip lines and waitstaff! Enter your physical table number, pick your food, and the kitchen serves you immediately.
+                </p>
+
+                <div class="form-group">
+                    <label class="form-label">Select Your Current Establishment</label>
+                    <select id="fastServeEstSelect" class="form-control" onchange="customerApp.onFastServeEstablishmentChanged()"></select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" style="font-size: 15px; color: var(--primary);">Your Table Number:</label>
+                    <input type="number" id="fastServeTableInput" class="form-control" placeholder="e.g. 12" style="font-size: 20px; font-weight: 800; text-align: center; letter-spacing: 2px;" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Quick Pick Items from this Establishment</label>
+                    <div id="fastServeItemsList" style="max-height: 180px; overflow-y: auto;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <div style="display: flex; gap: 16px; margin-top: 6px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                            <input type="radio" name="fastServePayment" value="UPI" checked> Instant UPI
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+                            <input type="radio" name="fastServePayment" value="CASH"> Pay Cash at Table
+                        </label>
+                    </div>
+                    <input type="text" id="fastServeUpiVpa" class="form-control" placeholder="UPI ID (e.g. table12@okhdfcbank)" style="margin-top: 8px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('fastServeModal').classList.remove('active')">Close</button>
+                <button class="btn btn-fast-serve" onclick="customerApp.submitFastServeOrder()">⚡ Send Fast Serve Order Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TABLE RESERVATION MODAL                    -->
+    <!-- ========================================== -->
+    <div id="reservationModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <div>
+                    <h3 style="font-size: 18px;">Reserve a Table</h3>
+                    <div id="resEstName" style="font-size: 12px; color: var(--primary); font-weight: 700;">Establishment</div>
+                </div>
+                <button class="modal-close" onclick="document.getElementById('reservationModal').classList.remove('active')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="resEstId">
+
+                <div class="grid grid-cols-2" style="gap: 12px;">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="resDate" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input type="time" id="resTime" class="form-control" value="19:30" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2" style="gap: 12px;">
+                    <div class="form-group">
+                        <label class="form-label">Number of Guests</label>
+                        <input type="number" id="resGuests" class="form-control" value="2" min="1" max="20" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Preferred Table # (Optional)</label>
+                        <input type="number" id="resTableNum" class="form-control" placeholder="e.g. 5">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Dining Ambiance</label>
+                    <select id="resAmbiance" class="form-control">
+                        <option value="DEFAULT">Standard Dining</option>
+                        <option value="CANDLE_LIGHT">Candle Light Dinner 🕯️</option>
+                        <option value="ROMANTIC">Romantic Table ❤️</option>
+                        <option value="FAMILY">Family Gathering 👨‍👩‍👧‍👦</option>
+                        <option value="PREMIUM">Premium Luxury 🥂</option>
+                        <option value="CASUAL">Casual Hangout 🍕</option>
+                        <option value="OUTDOOR">Outdoor Garden 🌿</option>
+                        <option value="BIRTHDAY">Birthday Celebration 🎂</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Special Notes / Dietary Preferences</label>
+                    <textarea id="resNotes" class="form-control" rows="2" placeholder="e.g. Window side table, celebrating anniversary"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('reservationModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="customerApp.submitReservation()">Confirm Reservation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- LIVE ORDER TRACKER MODAL                   -->
+    <!-- ========================================== -->
+    <div id="orderTrackerModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <div>
+                    <span class="badge badge-hotel">Live Order Tracking</span>
+                    <h3 style="margin-top: 4px; font-size: 18px;">Order #<span id="trackOrderNumber"></span></h3>
+                </div>
+                <button class="modal-close" onclick="document.getElementById('orderTrackerModal').classList.remove('active')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <h4 id="trackEstName" style="color: var(--primary); font-size: 16px;"></h4>
+                    <div id="trackOrderType" style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;"></div>
+                </div>
+
+                <!-- Step Progress Pipeline -->
+                <div id="trackStepsContainer" style="display: flex; justify-content: space-between; position: relative; margin: 30px 0;"></div>
+
+                <div style="background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px; margin-top: 20px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">
+                        <span>Payment Status:</span>
+                        <strong id="trackPaymentMethod"></strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 15px;">
+                        <span>Final Billed Amount:</span>
+                        <strong id="trackFinalAmount" style="color: var(--primary);"></strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="document.getElementById('orderTrackerModal').classList.remove('active')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CUSTOMER REVIEW MODAL                      -->
+    <!-- ========================================== -->
+    <div id="reviewModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3 style="font-size: 16px;">Write a Review</h3>
+                <button class="modal-close" onclick="document.getElementById('reviewModal').classList.remove('active')">✕</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="reviewEstId">
+                <input type="hidden" id="reviewOrderId">
+
+                <div class="form-group">
+                    <label class="form-label">Your Rating (1 to 5 Stars)</label>
+                    <select id="reviewRating" class="form-control">
+                        <option value="5.0">★★★★★ 5.0 - Exceptional Experience</option>
+                        <option value="4.0">★★★★☆ 4.0 - Very Good Food &amp; Service</option>
+                        <option value="3.0">★★★☆☆ 3.0 - Average</option>
+                        <option value="2.0">★★☆☆☆ 2.0 - Below Expectations</option>
+                        <option value="1.0">★☆☆☆☆ 1.0 - Poor</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Your Comments &amp; Feedback</label>
+                    <textarea id="reviewComment" class="form-control" rows="3" placeholder="Tell us about the food taste, ambiance, and serving speed..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="document.getElementById('reviewModal').classList.remove('active')">Cancel</button>
+                <button class="btn btn-primary" onclick="customerApp.submitReview()">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CART DRAWER                                -->
+    <!-- ========================================== -->
+    <div id="cartDrawer" class="cart-drawer">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 18px;">Your Dining Cart 🛒</h3>
+            <button class="modal-close" onclick="customerApp.toggleCartDrawer(false)">✕</button>
+        </div>
+
+        <div id="cartItemsList" style="flex: 1; overflow-y: auto; padding: 20px 24px;"></div>
+
+        <!-- Checkout Summary -->
+        <div style="padding: 20px 24px; border-top: 1px solid var(--border); background: var(--bg-surface);">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+                <span style="color: var(--text-secondary);">Subtotal:</span>
+                <span id="cartSubtotal" style="font-weight: 600;">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                <span style="color: var(--text-secondary);">GST Tax (5%):</span>
+                <span id="cartTax" style="font-weight: 600;">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 17px; font-weight: 800; border-top: 1px solid var(--border); padding-top: 8px; margin-bottom: 14px;">
+                <span>Total Amount:</span>
+                <span id="cartFinal" style="color: var(--primary);">₹0.00</span>
+            </div>
+
+            <!-- Payment Selector -->
+            <div style="margin-bottom: 14px;">
+                <label class="form-label" style="font-size: 12px;">Payment Method</label>
+                <div style="display: flex; gap: 14px; margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                        <input type="radio" name="cartPaymentMethod" value="UPI" checked> Instant UPI
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                        <input type="radio" name="cartPaymentMethod" value="CASH"> Cash (Counter / Table)
+                    </label>
+                </div>
+                <input type="text" id="cartUpiVpa" class="form-control" placeholder="UPI ID (e.g. user@okhdfcbank)" value="customer@smartdine.upi" style="margin-top: 8px; font-size: 12px;">
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%;" onclick="customerApp.checkoutCart()">
+                Place Order &amp; Pay Bill →
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/maps.js"></script>
+    <script src="js/customer.js"></script>
+</body>
+</html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartDine — Establishment Manager (Hotel & Canteen)</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .layout-wrapper {
+            display: flex;
+            min-height: calc(100vh - 72px);
+        }
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            flex-shrink: 0;
+        }
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        .sidebar-nav-item:hover, .sidebar-nav-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-value {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin: 4px 0;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: var(--bg-surface);
+            color: var(--text-secondary);
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="navbar">
+        <div class="container nav-wrapper">
+            <a href="establishment.html" class="brand-logo">
+                <div class="brand-icon">🏨</div>
+                <div>
+                    <span id="estHeaderName">Establishment Portal</span>
+                    <span id="estHeaderType" class="badge badge-hotel" style="margin-left: 8px; font-size: 11px;">HOTEL</span>
+                </div>
+            </a>
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <span id="estHeaderHours" style="font-size: 13px; color: var(--text-secondary);">Operating Hours: 08:00 - 22:30</span>
+                <button class="btn btn-secondary btn-sm" onclick="auth.logout()">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="layout-wrapper">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <a class="sidebar-nav-item active" data-tab="dashboard">
+                <span>📊</span> Dashboard Overview
+            </a>
+            <a class="sidebar-nav-item" data-tab="orders">
+                <span>🔔</span> Live Orders &amp; Fast Serve
+            </a>
+            <a class="sidebar-nav-item" data-tab="menu">
+                <span>🍽️</span> Menu &amp; Food Items
+            </a>
+            <a class="sidebar-nav-item" data-tab="clearance">
+                <span>⚡</span> Smart Food Clearance
+            </a>
+            <a class="sidebar-nav-item" data-tab="reservations">
+                <span>📅</span> Table Reservations
+            </a>
+            <a class="sidebar-nav-item" data-tab="reviews">
+                <span>★</span> Customer Reviews
+            </a>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+
+            <!-- TAB 1: DASHBOARD OVERVIEW -->
+            <section id="tab-dashboard" class="tab-section">
+                <div style="margin-bottom: 24px;">
+                    <h2 style="font-size: 24px;">Establishment Dashboard</h2>
+                    <p style="font-size: 14px; color: var(--text-secondary);">
+                        Unified Hotel &amp; Canteen real-time dining operations and sales tracking.
+                    </p>
+                </div>
+
+                <!-- KPI Cards Grid -->
+                <div class="grid grid-cols-4" style="margin-bottom: 28px;">
+                    <div class="stat-card">
+                        <div class="stat-label">SmartDine Turnover</div>
+                        <div class="stat-value" id="kpiTurnover" style="color: var(--primary);">₹0</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Completed/Paid orders</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Today's Revenue</div>
+                        <div class="stat-value" id="kpiTodayRev">₹0</div>
+                        <div style="font-size: 11px; color: var(--success); font-weight: 600;">● Active today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Orders</div>
+                        <div class="stat-value" id="kpiTotalOrders">0</div>
+                        <div style="font-size: 11px; color: var(--text-muted);"><span id="kpiTodayOrders">0</span> orders today</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Customer Rating</div>
+                        <div class="stat-value" id="kpiRating" style="color: #f59e0b;">★ 0.0</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Verified reviews</div>
+                    </div>
+                </div>
+
+                <!-- Secondary Operational Status Cards -->
+                <div class="grid grid-cols-3" style="margin-bottom: 28px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Pending Kitchen Orders</div>
+                        <div class="stat-value" id="kpiPendingOrders" style="color: var(--warning);">0</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Requires preparation</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Fast Serve Orders</div>
+                        <div class="stat-value" id="kpiFastServe" style="color: #b45309;">0</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Seated at table right now</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Active Table Reservations</div>
+                        <div class="stat-value" id="kpiReservations" style="color: var(--info);">0</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Confirmed bookings</div>
+                    </div>
+                </div>
+
+                <!-- Popular Food Items & Analytics -->
+                <div class="grid grid-cols-2">
+                    <div class="card" style="padding: 24px;">
+                        <h3 style="font-size: 16px; margin-bottom: 14px;">🔥 Top / Favorite Food Items</h3>
+                        <div id="topFoodsList"></div>
+                    </div>
+                    <div class="card" style="padding: 24px;">
+                        <h3 style="font-size: 16px; margin-bottom: 14px;">📉 Least Ordered Items (Optimize Menu)</h3>
+                        <div id="leastFoodsList"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: LIVE ORDERS & FAST SERVE -->
+            <section id="tab-orders" class="tab-section" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="font-size: 22px;">Live Kitchen &amp; Fast Serve Orders</h2>
+                        <p style="font-size: 13px; color: var(--text-secondary);">Manage incoming orders, progress statuses, and table deliveries.</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary btn-sm" onclick="establishmentApp.loadOrders(false)">All Orders</button>
+                        <button class="btn btn-fast-serve btn-sm" onclick="establishmentApp.loadOrders(true)">⚡ Fast Serve Only</button>
+                    </div>
+                </div>
+
+                <div class="card" style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Type / Table</th>
+                                <th>Customer</th>
+                                <th>Items</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 3: MENU & FOOD MANAGEMENT -->
+            <section id="tab-menu" class="tab-section" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="font-size: 22px;">Menu Management</h2>
+                        <p style="font-size: 13px; color: var(--text-secondary);">Add, edit, change prices, toggle availability, and configure tags.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="establishmentApp.openAddFoodModal()">+ Add New Food Item</button>
+                </div>
+
+                <div id="menuGridContainer" class="grid grid-cols-3"></div>
+            </section>
+
+            <!-- TAB 4: SMART FOOD CLEARANCE ALERTS -->
+            <section id="tab-clearance" class="tab-section" style="display: none;">
+                <div style="margin-bottom: 24px;">
+                    <span class="badge badge-clearance" style="margin-bottom: 6px;">Closing-Time Waste Reduction</span>
+                    <h2 style="font-size: 22px;">Smart Food Clearance Alert</h2>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        Create closing-time clearance offers with dynamic discounts (e.g. 50% OFF) to clear leftover food portions to nearby users.
+                    </p>
+                </div>
+
+                <!-- Create Clearance Offer Form -->
+                <div class="card" style="padding: 24px; margin-bottom: 28px;">
+                    <h3 style="font-size: 16px; margin-bottom: 16px;">Create Closing-Time Food Clearance Deal</h3>
+                    <form id="clearanceForm" onsubmit="establishmentApp.createClearanceOffer(event)">
+                        <div class="grid grid-cols-3" style="gap: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Select Food Item</label>
+                                <select id="clearanceFoodSelect" class="form-control" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Discount Percentage (%)</label>
+                                <input type="number" id="clearanceDiscountInput" class="form-control" value="50" min="10" max="90" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Available Portions Left</label>
+                                <input type="number" id="clearanceQtyInput" class="form-control" value="10" min="1" max="100" required>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2" style="gap: 16px;">
+                            <div class="form-group">
+                                <label class="form-label">Offer Start Time</label>
+                                <input type="time" id="clearanceStartInput" class="form-control" value="20:30" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Offer Expiry Time (Restaurant Closing)</label>
+                                <input type="time" id="clearanceEndInput" class="form-control" value="22:30" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            ⚡ Activate Clearance Deal for Nearby Customers
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card" style="overflow-x: auto;">
+                    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700;">
+                        Active Clearance Deals
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Food Item</th>
+                                <th>Discount</th>
+                                <th>Price</th>
+                                <th>Remaining Stock</th>
+                                <th>Time Window</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clearanceTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: TABLE RESERVATIONS -->
+            <section id="tab-reservations" class="tab-section" style="display: none;">
+                <div style="margin-bottom: 20px;">
+                    <h2 style="font-size: 22px;">Table Reservations</h2>
+                    <p style="font-size: 13px; color: var(--text-secondary);">Manage guest bookings, seating ambiance, and pre-ordered dishes.</p>
+                </div>
+
+                <div class="card" style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ref #</th>
+                                <th>Customer</th>
+                                <th>Date &amp; Time</th>
+                                <th>Guests</th>
+                                <th>Ambiance</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reservationsTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 6: CUSTOMER REVIEWS -->
+            <section id="tab-reviews" class="tab-section" style="display: none;">
+                <div style="margin-bottom: 20px;">
+                    <h2 style="font-size: 22px;">Customer Reviews &amp; Feedback</h2>
+                    <p style="font-size: 13px; color: var(--text-secondary);">
+                        Genuine customer ratings. Reviews cannot be deleted by establishment managers; abusive reviews can be reported to Admin moderation.
+                    </p>
+                </div>
+
+                <div id="reviewsContainer"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ADD FOOD ITEM MODAL                        -->
+    <!-- ========================================== -->
+    <div id="foodModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3 style="font-size: 18px;">Add New Menu Item</h3>
+                <button class="modal-close" onclick="document.getElementById('foodModal').classList.remove('active')">✕</button>
+            </div>
+            <div class="modal-body">
+                <form id="foodForm" onsubmit="establishmentApp.saveFoodItem(event)">
+                    <div class="form-group">
+                        <label class="form-label">Food / Dish Name</label>
+                        <input type="text" id="foodNameInput" class="form-control" placeholder="e.g. Chicken Dum Biriyani" required>
+                    </div>
+
+                    <div class="grid grid-cols-2" style="gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Price (₹)</label>
+                            <input type="number" id="foodPriceInput" class="form-control" placeholder="180" min="1" step="0.5" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Category</label>
+                            <input type="text" id="foodCatInput" class="form-control" placeholder="Main Course" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2" style="gap: 12px;">
+                        <div class="form-group">
+                            <label class="form-label">Dietary Type</label>
+                            <select id="foodIsVegInput" class="form-control">
+                                <option value="true">VEG</option>
+                                <option value="false">NON-VEG</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Image URL</label>
+                            <input type="url" id="foodImageInput" class="form-control" placeholder="https://..." value="https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=400&q=80">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Ambiance &amp; Dietary Tags (comma separated)</label>
+                        <input type="text" id="foodTagsInput" class="form-control" placeholder="e.g. CANDLE_LIGHT, ROMANTIC, SPICY, DINNER">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="foodDescInput" class="form-control" rows="2" placeholder="Rich aroma, served with raita..."></textarea>
+                    </div>
+
+                    <div class="modal-footer" style="padding: 16px 0 0; border-top: 1px solid var(--border);">
+                        <button type="button" class="btn btn-secondary" onclick="document.getElementById('foodModal').classList.remove('active')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Food Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/establishment.js"></script>
+</body>
+</html>
