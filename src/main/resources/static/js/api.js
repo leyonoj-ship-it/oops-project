@@ -3,7 +3,7 @@
 // Handles authentication tokens, error trapping, and endpoints
 // =========================================================
 
-const API_BASE = '/api';
+const API_BASE = 'https://oops-project-smartdine.onrender.com/';
 
 const api = {
     getToken() {
